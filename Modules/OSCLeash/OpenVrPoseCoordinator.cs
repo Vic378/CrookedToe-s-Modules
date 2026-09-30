@@ -181,21 +181,40 @@ internal sealed class OpenVrStandingPoseBackend : IStandingPoseBackend
     }
 
     public bool TryRead(out HmdMatrix34_t pose)
+{
+    pose = default;
+
+    try
     {
-        pose = default;
-        try
+        HmdMatrix34_t? rawToStanding = _readRawToStanding();
+
+        if (!rawToStanding.HasValue)
         {
-            // A chaperone working copy belongs to this client and can stay unchanged
-            // while OVR Advanced Settings previews a different origin. Read the active
-            // tracking transform for both grab baselines and external-writer detection.
-            HmdMatrix34_t? rawToStanding = _readRawToStanding();
-            return rawToStanding.HasValue && StandingPoseMath.TryInvertRigidPose(rawToStanding.Value, out pose);
-        }
-        catch
-        {
+            Console.WriteLine("[OSCLeash] rawToStanding = null");
             return false;
         }
+
+        Console.WriteLine(
+            $"[OSCLeash] Matrix: " +
+            $"{rawToStanding.Value.m0}, {rawToStanding.Value.m1}, {rawToStanding.Value.m2}, {rawToStanding.Value.m3} | " +
+            $"{rawToStanding.Value.m4}, {rawToStanding.Value.m5}, {rawToStanding.Value.m6}, {rawToStanding.Value.m7} | " +
+            $"{rawToStanding.Value.m8}, {rawToStanding.Value.m9}, {rawToStanding.Value.m10}, {rawToStanding.Value.m11}");
+
+        bool result =
+            StandingPoseMath.TryInvertRigidPose(
+                rawToStanding.Value,
+                out pose);
+
+        Console.WriteLine($"[OSCLeash] Invert result={result}");
+
+        return result;
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[OSCLeash] Exception: {ex}");
+        return false;
+    }
+}
 
     public bool TryPreview(HmdMatrix34_t pose)
     {
